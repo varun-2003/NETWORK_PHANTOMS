@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="image.png" size="64*64" type="image/png">
+<title>Glitch Text Effect</title>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: #0a0a0a;
+    color: rgb(239, 21, 9);
+    font-family: Consolas, Courier, monospace;
+    font-size: 80px;
+    text-shadow: 0 0 15px rgb(255, 30, 5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .text-container {
+    position: relative;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .glow {
+    color: #00ff00;
+    text-shadow: 0px 0px 10px #00ff00e7;
+  }
+
+  span {
+    display: inline-block;
+    padding: 0 10px;
+  }
+
+  #present {
+    margin-top: 50px;
+    opacity: 0; /* Initially invisible */
+    font-size: 15px; /* Match the size of the above text */
+    transform: scale(3); /* Start with a larger scale */
+    transition: transform 1s, opacity 1s; /* Smooth transition for transform and opacity */
+    color: #00ff00bd;
+    text-shadow: 0 0 15px #00ff00;
+  }
+
+  .zoom-out {
+    transform: scale(1); /* End with the normal scale */
+    opacity: 1; /* Make the text visible */
+  }
+</style>
+</head>
+<body>
+<div class="text-container">
+  <div id="loading">NETWORK PHANTOMS</div>
+  <div id="present">PRESENTS</div>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+
+  const firebaseConfig = {
+    // space for firebase credentials
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth();
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      window.location.href = 'index.html';
+    }
+  });
+
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890".split("");
+  let letterCount = 0;
+  const loadingEl = $("#loading");
+  const loadingWord = loadingEl.html().trim();
+  let loadingFinished = false;
+
+  loadingEl.html("");
+  for (let i = 0; i < loadingWord.length; i++) {
+    loadingEl.append("<span>" + loadingWord.charAt(i) + "</span>");
+  }
+
+  setTimeout(loadingWrite, 75);
+  let loadingIncrementer = setTimeout(loadingInc, 100);
+
+  function loadingWrite() {
+    for (let i = letterCount; i < loadingWord.length; i++) {
+      const c = Math.floor(Math.random() * alphabet.length);
+      $("span")[i].innerHTML = alphabet[c];
+    }
+    if (!loadingFinished) {
+      setTimeout(loadingWrite, 7);
+    }
+  }
+
+  function loadingInc() {
+    $("span")[letterCount].innerHTML = loadingWord[letterCount];
+    $("span:eq(" + letterCount + ")").addClass("glow");
+    letterCount++;
+    if (letterCount >= loadingWord.length) {
+      loadingFinished = true;
+      setTimeout(startPresentEffect, 500); // Start the "PRESENT" effect after "NETWORK PHANTOMS" completes
+    } else {
+      setTimeout(loadingInc, 100);
+    }
+  }
+
+  function startPresentEffect() {
+    const presentEl = $("#present");
+    presentEl.css("opacity", "1"); // Make "PRESENT" visible
+    setTimeout(() => presentEl.addClass("zoom-out"), 0); // Apply the zoom-out effect immediately
+    setTimeout(() => {
+      window.location.href = "dash.html"; // Redirect to the desired URL after the effect
+    }, 800); // Adjust this delay to match the duration of the effect
+  }
+</script>
+</body>
+</html>

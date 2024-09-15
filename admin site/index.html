@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="image.png" size="64*64" type="image/png">
+    <title>Login Page</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <video autoplay muted loop id="myVideo">
+        <source src="Matrixvideo.mp4" type="video/mp4">
+    </video>
+    <div class="login-body">
+        <div class="login-container">
+            <h1>LOGIN</h1>
+            <form id="loginForm">
+                <label for="username">Username (Email)</label>
+                <input type="email" id="username" name="username" autocomplete="off" required>
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" autocomplete="off" required>
+                <button type="submit" id="login">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-analytics.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            // space for firebase credentials
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth();
+
+        // Handle login
+        document.getElementById("loginForm").addEventListener("submit", function(event) {
+            event.preventDefault(); // Prevent the default form submission
+
+            const email = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    console.log(user);
+                    window.location.href="loading.html";
+                    // Redirect to another page after successful login
+                    // window.location.href = "dashboard.html"; // Uncomment this line for redirection
+                })
+                .catch((error) => {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    console.error("Error code:", errorCode);
+                    alert(errorMessage);
+                });
+        });
+    </script>
+</body>
+</html>

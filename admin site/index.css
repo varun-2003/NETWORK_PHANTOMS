@@ -1,0 +1,75 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Courier New', Courier, monospace;
+    background-color: black;
+    color: green;
+    height: 100%;
+    overflow: hidden;
+}
+
+#myVideo {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    min-width: 100%;
+    min-height: 100%;
+    z-index: 1; 
+}
+
+.login-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    z-index: 2;
+    position: relative;
+    
+}
+h1{
+    
+    font-size: 35px;
+    font-weight: 600;
+    display: block;
+    margin-left: 100px;
+}
+
+.login-container {
+    background: rgba(0, 0, 0, 0.8);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px green;
+    width: 300px;
+    height: 400px;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    margin-top: 50px;
+}
+
+label{
+    color: white;
+    margin-bottom: 15px;
+}
+
+ input {
+    
+    margin-bottom: 35px;
+    height: 30px;
+}
+
+button {
+    padding: 10px;
+    background-color: green;
+    color:white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+button:hover {
+    background-color: darkgreen;
+}

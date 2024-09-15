@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="image.png" size="64*64" type="image/png">
+  <title>KEY VAULT</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <style>
+    body {
+      background: #000;
+      color: #0f0;
+      font-family: 'Courier New', Courier, monospace;
+      overflow-x: hidden;
+    }
+
+    .container {
+      background-color: #111;
+      border: 1px solid #0f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 0 10px #0f0;
+    }
+
+    .navbar {
+      background-color: #000;
+      border-bottom: 1px solid #0f0;
+    }
+
+    .navbar-brand {
+      color: #0f0 !important;
+    }
+
+    .navbar-brand:hover {
+      color: #0f0 !important;
+    }
+
+    .btn-secondary {
+      background-color: #333;
+      border: 1px solid #0f0;
+    }
+
+    .btn-secondary:hover {
+      background-color: #444;
+      border-color: #0f0;
+    }
+
+    .btn-filter {
+      background-color: #0f0;
+      border: 1px solid #333;
+    }
+
+    .btn-filter:hover {
+      background-color: #0f0;
+      color: #333;
+    }
+
+    .form-select, .form-control {
+      background-color: #222;
+      color: #0f0;
+      border: 1px solid #333;
+    }
+
+    .form-select:focus, .form-control:focus {
+      border-color: #0f0;
+    }
+
+    .table {
+      background-color: #000;
+      color: #0f0;
+      border: 1px solid #0f0;
+    }
+
+    .table thead th {
+      color: #0f0;
+      border-bottom: 1px solid #0f0;
+      text-align: center; /* Center align heading text */
+    }
+
+    .table tbody td, .table thead th {
+      text-align: center; /* Center align cell text */
+    }
+
+    .table-dark tbody tr {
+      background-color: #111;
+    }
+
+    .table-dark tbody tr:nth-child(odd) {
+      background-color: #222;
+    }
+
+    .table-dark tbody tr:hover {
+      background-color: #333;
+    }
+
+    .btn-view {
+      color: #000; /* Black text color */
+      background-color: #0f0; /* Green background color */
+      border: 1px solid #0f0; /* Green border */
+    }
+
+    .btn-view:hover {
+      color: #0f0; /* Green text color on hover */
+      background-color: #000; /* Black background on hover */
+      border: 1px solid #0f0; /* Green border on hover */
+    }
+
+    .text-decoration-none {
+      text-decoration: none;
+    }
+
+    /* Centering the View button */
+    .btn-view {
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Adjusting the filter container*/ 
+    #filter-container {
+      display: flex;
+      align-items: center;
+    }
+
+    .filter-input {
+      margin-right: 10px;
+    }
+
+    ::placeholder {
+      color: aliceblue;
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#"><h2>KEY VAULT</h2></a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <select id="sort-options" class="form-select w-auto" onchange="sortTable()">
+        <option value="default">Sort By</option>
+        <option value="ip">IP Address</option>
+        <option value="mac">MAC Address</option>
+        <option value="host_name">Host</option>
+        <option value="start_date">Date</option>
+      </select>
+      <div id="filter-container">
+        <input type="text" id="filter-input" placeholder="Enter IP" class="form-control filter-input" oninput="filterTable()">
+        <button id="filter-btn" class="btn btn-filter" >Filter</button>
+      </div>
+    </div>
+
+    <table class="table table-dark table-striped">
+      <thead>
+        <tr>
+          <th>S.no</th>
+          <th>IP</th>
+          <th>MAC</th>
+          <th>Host</th>
+          <th>DATE</th>
+          <th>KEYSTROKE</th>
+        </tr>
+      </thead>
+      <tbody id="tbody1"></tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+    import { getDatabase, ref, child, get } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-database.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+
+    const firebaseConfig = {
+      // space for firebase credentials
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase();
+    const auth = getAuth();
+
+    let loglist = [];
+    let filteredList = [];
+    let sno = 0;
+    let tbody = document.getElementById('tbody1');
+
+    const checkAuth = () => {
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          SelectAllDataOnce();
+        } else {
+          window.location.href = 'index.html';
+        }
+      });
+    }
+
+    const SelectAllDataOnce = () => {
+      const dbRef = ref(db);
+      get(child(dbRef, 'log')).then((snapshot) => {
+        loglist = [];
+        if (snapshot.exists()) {
+          snapshot.forEach((logs) => {
+            let data = { id: logs.key, ...logs.val() };
+            if (typeof data.ip !== 'string') {
+              data.ip = String(data.ip);
+            }
+            loglist.push(data);
+          });
+          filteredList = [...loglist];
+          SortByDateDescending();
+          AddAllRecords();
+        } else {
+          console.log("No data available");
+        }
+      }).catch((error) => {
+        console.error("Error getting data: ", error);
+      });
+    }
+
+    const SortByDateDescending = () => {
+      filteredList.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+    }
+
+    const AddSingleRecord = (id, ip, mac, host_name, start_date, keystrokes) => {
+      let trow = document.createElement('tr');
+      let td1 = document.createElement('td');
+      let td2 = document.createElement('td');
+      let td3 = document.createElement('td');
+      let td4 = document.createElement('td');
+      let td5 = document.createElement('td');
+      let td6 = document.createElement('td'); 
+
+      td1.innerHTML = ++sno;
+      td2.innerHTML = ip;
+      td3.innerHTML = mac;
+      td4.innerHTML = host_name;
+      td5.innerHTML = start_date;
+      td6.innerHTML = `<a href="keyinfo.html?id=${id}" class="btn btn-view text-decoration-none">View</a>`; 
+
+      trow.append(td1, td2, td3, td4, td5, td6);
+      tbody.append(trow);
+    }
+
+    const AddAllRecords = () => {
+      sno = 0;
+      tbody.innerHTML = "";
+      filteredList.forEach(logs => {
+        AddSingleRecord(logs.id, logs.ip, logs.mac, logs.host_name, logs.start_date, logs.keystrokes);
+      });
+    }
+
+    const sortTable = () => {
+      const sortBy = document.getElementById('sort-options').value;
+      if (sortBy !== "default") {
+        filteredList.sort((a, b) => {
+          if (sortBy === 'start_date') {
+            return new Date(b[sortBy]) - new Date(a[sortBy]);
+          } else if (a[sortBy] < b[sortBy]) return -1;
+          if (a[sortBy] > b[sortBy]) return 1;
+          return 0;
+        });
+      } else {
+        filteredList = [...loglist];
+        SortByDateDescending();
+      }
+      AddAllRecords();
+    }
+
+    const toggleFilter = () => {
+      const filterContainer = document.getElementById('filter-container');
+      filterContainer.style.display = filterContainer.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    const filterTable = () => {
+      const filterValue = document.getElementById('filter-input').value.toLowerCase();
+      filteredList = loglist.filter(logs => {
+        if (typeof logs.ip !== 'string') {
+          logs.ip = String(logs.ip);
+        }
+        return logs.ip.toLowerCase().includes(filterValue);
+      });
+      SortByDateDescending();
+      AddAllRecords();
+    }
+
+    window.addEventListener('load', checkAuth);
+    window.sortTable = sortTable;
+    window.toggleFilter = toggleFilter;
+    window.filterTable = filterTable;
+  </script>
+</body>
+</html>

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Data Fetch</title>
+    <!-- Include Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+        import { getDatabase, ref, get } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
+
+        const firebaseConfig = {
+            // space for firebase credentials
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        const logRef = ref(database, 'log');
+        const keywordsRef = ref(database, 'keywords');
+        const blockRef = ref(database, 'block');
+
+        Promise.all([get(logRef), get(keywordsRef), get(blockRef)])
+            .then(([logSnapshot, keywordsSnapshot, blockSnapshot]) => {
+                const logData = logSnapshot.val();
+                const keywordsData = keywordsSnapshot.val();
+                const blockData = blockSnapshot.val();
+                
+                if (logData && keywordsData) {
+                    const entryCount = Object.keys(logData).length;
+                    const macSet = new Set();
+                    Object.values(logData).forEach(entry => {
+                        if (entry.mac) {
+                            macSet.add(entry.mac);
+                        }
+                    });
+
+                    const keywords = Object.values(keywordsData);
+                    let alertCount = 0;
+
+                    Object.values(logData).forEach(entry => {
+                        if (entry.keystrokes) {
+                            keywords.forEach(keyword => {
+                                if (entry.keystrokes.includes(keyword)) {
+                                    alertCount++;
+                                    return;
+                                }
+                            });
+                        }
+                    });
+
+                    const safeCount = entryCount - alertCount;
+                    const blockedCount = blockData ? Object.keys(blockData).length : 0;
+
+                    document.getElementById('systems').innerText = macSet.size;
+                    document.getElementById('totalKeystrokes').innerText = entryCount;
+                    document.getElementById('alerts').innerText = alertCount;
+                    document.getElementById('safeKeywords').innerText = safeCount;
+                    document.getElementById('blockedDevices').innerText = blockedCount;
+                   
+
+                    const colors = [
+                        'rgba(54, 162, 235, 0.7)', // Blue
+                        'rgba(0, 255, 0, 0.7)', // Green
+                        'rgba(255, 0, 0, 0.7)', // Red
+                        'rgba(255, 159, 64, 0.7)',  // Orange
+                        'rgba(153, 102, 255, 0.7)', // Purple
+                    ];
+
+                    const pieCtx = document.getElementById('pieChart').getContext('2d');
+                    const pieChart = new Chart(pieCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: [ 'Keystrokes','Safe Keystrokes', 'Alerts','Systems','Blocked Devices', ],
+                            datasets: [{
+                                label: 'Statistics',
+                                data: [entryCount, safeCount, alertCount, macSet.size, blockedCount],
+                                backgroundColor: colors,
+                                borderColor: colors.map(c => c.replace('0.7', '1')),
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(tooltipItem) {
+                                            return `${tooltipItem.label}: ${tooltipItem.raw} (${tooltipItem.formattedValue}%)`;
+                                        }
+                                    }
+                                },
+                                datalabels: {
+                                    formatter: (value, context) => {
+                                        return `${Math.round(value / context.dataset._meta[0].total * 100)}%`;
+                                    },
+                                    color: '#00ff00',
+                                    font: {
+                                        weight: 'bold',
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    const barCtx = document.getElementById('barChart').getContext('2d');
+                    const barChart = new Chart(barCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Keystrokes','Safe Keystrokes', 'Alerts','Systems', 'Blocked Devices' ],
+                            datasets: [{
+                                label: 'Statistics',
+                                data: [entryCount, safeCount, alertCount, macSet.size, blockedCount],
+                                backgroundColor: colors,
+                                borderColor: colors.map(c => c.replace('0.7', '1')),
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(tooltipItem) {
+                                            return `${tooltipItem.label}: ${tooltipItem.raw} (${tooltipItem.formattedValue}%)`;
+                                        }
+                                    }
+                                },
+                                datalabels: {
+                                    formatter: (value, context) => {
+                                        return `${Math.round(value / context.dataset._meta[0].total * 100)}%`;
+                                    },
+                                    color: '#00ff00',
+                                    font: {
+                                        weight: 'bold',
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    beginAtZero: true
+                                },
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+
+                    // Add event listeners to table cells
+                    const tableCells = document.querySelectorAll('td');
+                    tableCells.forEach((cell, index) => {
+                        cell.addEventListener('mouseover', () => {
+                            highlight(index);
+                        });
+                        cell.addEventListener('mouseout', () => {
+                            resetHighlight();
+                        });
+                    });
+
+                    function highlight(index) {
+                        // Highlight table cell
+                        tableCells.forEach((cell, i) => {
+                            cell.style.backgroundColor = i === index ? colors[i] : '';
+                        });
+
+                        // Highlight chart segment
+                        pieChart.data.datasets[0].backgroundColor = colors.map((color, i) => 
+                            i === index ? color : color.replace('0.7', '0.3')
+                        );
+                        pieChart.update();
+
+                        barChart.data.datasets[0].backgroundColor = colors.map((color, i) => 
+                            i === index ? color : color.replace('0.7', '0.3')
+                        );
+                        barChart.update();
+                    }
+
+                    function resetHighlight() {
+                        // Reset table cell background color
+                        tableCells.forEach(cell => {
+                            cell.style.backgroundColor = '';
+                        });
+
+                        // Reset chart segment color
+                        pieChart.data.datasets[0].backgroundColor = colors;
+                        pieChart.update();
+
+                        barChart.data.datasets[0].backgroundColor = colors;
+                        barChart.update();
+                    }
+                } else {
+                    document.getElementById('systems').innerText = '0';
+                    document.getElementById('totalKeystrokes').innerText = '0';
+                    document.getElementById('alerts').innerText = '0';
+                    document.getElementById('blockedDevices').innerText = '0';
+                    document.getElementById('safeKeywords').innerText = '0';
+                }
+            })
+            .catch((error) => {
+                console.error('Error fetching data:', error);
+                document.getElementById('systems').innerText = 'Error';
+                document.getElementById('totalKeystrokes').innerText = 'Error';
+                document.getElementById('alerts').innerText = 'Error';
+                document.getElementById('blockedDevices').innerText = 'Error';
+                document.getElementById('safeKeywords').innerText = 'Error';
+            });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #18181B;
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        h1 {
+            color: #00ff00;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .chart-row {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .chart-container {
+            width: 90%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .bar-container, .pie-container {
+            width: 40%;
+            margin-top: 40px;
+        }
+        .table-container {
+            width: 100%;
+            max-width: 600px;
+            overflow-x: auto;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #000000;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            margin: 0 auto;
+        }
+        th, td {
+            border: 1px solid #555;
+            padding: 10px 15px;
+            text-align: center;
+            font-size: 18px;
+            color: #00ff00;
+        }
+        th {
+            background-color: rgb(22, 22, 22);
+            font-weight: bold;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #282828;
+        }
+        tbody tr:hover {
+            background-color: #444;
+        }
+        caption {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #00ff00;
+        }
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+        }
+        .info-box {
+            margin-top: 50px;
+            padding: 15px;
+            width: 100%;
+            max-width: 1200px;
+            background-color: #000000;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            text-align: center;
+           
+        }
+
+        .info-box h1{   
+            color:white;
+        }
+
+        .info-box h3{   
+            color:red;
+        }
+    </style>
+</head>
+<body>
+    <h1> Log Folder Statistics</h1>
+    <div class="container">
+        <div class="table-container">
+            <table>
+                <caption>System and Log Data</caption>
+                <thead>
+                    <tr>
+                        <th>Total Keystrokes</th>
+                        <th>Safe Keywords</th>
+                        <th>Alerts</th>
+                        <th>Systems</th>
+                        <th>Blocked Devices</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="totalKeystrokes">Loading...</td>
+                        <td id="safeKeywords">Loading...</td>
+                        <td id="alerts">Loading...</td>
+                        <td id="systems">Loading...</td>
+                        <td id="blockedDevices">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="chart-row">
+            <div class="pie-container">
+                <canvas id="pieChart"></canvas>
+            </div>
+            <div class="bar-container">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+
+
+        <div class="info-box">
+            <h1>SECUTITY MONITORING</h1>
+            <p><h3>Threat Detection:</h3> Keyloggers can help in identifying suspicious activities, such as unauthorized access or attempts to breach security protocols, by monitoring keystrokes and detecting abnormal behavior.
+                <h3>Data Loss Prevention (DLP):</h3> Monitoring keystrokes can prevent data leaks by identifying when sensitive information is being shared or accessed inappropriately.
+                </p>
+        </div>
+        
+
+        <div class="info-box">
+            <h1>COMPLAINCE AND AUDITING</h1>
+            <p><h3>Regulatory Compliance:</h3>  Organizations in highly regulated industries may use keyloggers to ensure employees are following required protocols, aiding in compliance with industry standards.
+                <h3>Internal Audits:</h3> Keyloggers can provide a record of employee activities, which can be useful during internal audits or investigations.
+                </p>
+        </div>
+
+        <div class="info-box">
+            <h1>PRODUCTIVITY ANALYSIS</h1>
+            <p><h3>Employee Monitoring:</h3> Keyloggers can track how employees spend their time on work-related tasks, helping management to identify inefficiencies and improve overall productivity.
+                <h3>Performance Evalution:</h3> By analyzing keystroke data, organizations can gain insights into the performance and workflow of employees, identifying areas for improvement or additional training.
+                </p>
+        </div>
+        
+        <div class="info-box">
+            <h1>FORENSIC ANALYSIS</h1>
+            <p><h3>Incident Investigation:</h3>In the event of a security breach or other incident, keyloggers can provide valuable forensic evidence, helping to reconstruct the actions leading up to the event and identify the responsible parties.
+                <h3> Behavioral Analysis:</h3>Organizations can use keylogging data to analyze patterns in user behavior, potentially identifying risks or improving security protocols based on user habits.
+                </p>
+        </div>
+        <div class="info-box">
+            <h1>TRAINING AND DEVELOPMENT</h1>
+            <p><h3>Behavioral Insights:</h3>Keyloggers can help in understanding how employees interact with systems and software, providing data that can be used to improve user interfaces, workflows, or provide targeted training.</p>
+        </div>
+
+        <div class="info-box">
+            <h1>ETHICAL CONSIDERATIONS</h1>
+            <p><h3>Privacy Concerns: </h3>The use of keyloggers must be carefully managed to respect employee privacy, ensuring that monitoring is done transparently and within legal boundaries.</p>
+            <p><h3>Informed Consent: </h3>Employees should be informed about the use of keyloggers, and organizations must have clear policies in place to justify their use.</p>
+            <p><h3>Legal Compliance: </h3>Legal Compliance: Organizations must ensure that keylogging practices comply with local and international laws, including data protection regulations.</p>
+        </div>
+    </div>
+</body>
+</html>

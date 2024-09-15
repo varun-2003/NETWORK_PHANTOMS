@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="image.png" size="64*64" type="image/png">
+    <title>Device Details</title>
+    <style>
+        /* Your existing CSS */
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #0d0d0d;
+            color: #00ff00;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .details {
+            background-color: #1a1a1a;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            padding: 20px;
+            width: 100%;
+            max-width: 800px;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            margin-bottom: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2rem;
+            color: #00ff00;
+        }
+        .detail-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-bottom: 1px solid #00ff00;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+        .detail-item:hover {
+            background-color: #00ff00;
+            color: #0d0d0d;
+        }
+        .detail-item:hover strong {
+            color: #0d0d0d;
+        }
+        .detail-item strong {
+            color: #00ff00;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 800px;
+        }
+        .action-button, .block-button {
+            background-color: #ff0000;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .action-button:hover, .block-button:hover {
+            background-color: #cc0000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="details" id="details">
+            <!-- Device details will be displayed here -->
+        </div>
+        <div class="button-container">
+            <button class="action-button" id="delete-button">Delete</button>
+            <button class="block-button" id="block-button">Block</button>
+        </div>
+    </div>
+
+    <!-- Include Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js"></script>
+    
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            // space for firebase credentials
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+
+        // Check authentication status
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // User is authenticated
+                loadDeviceDetails();
+            } else {
+                // User is not authenticated, redirect to index.html
+                window.location.href = 'index.html';
+            }
+        });
+
+        function loadDeviceDetails() {
+            const params = new URLSearchParams(window.location.search);
+            const data = params.get('data');
+
+            if (data) {
+                const deviceData = JSON.parse(decodeURIComponent(data));
+                const detailsDiv = document.getElementById('details');
+
+                detailsDiv.innerHTML = `
+                    <h1>Device Details</h1>
+                    <div class="detail-item"><strong>MAC:</strong> ${deviceData.mac || 'Not available'}</div>
+                    <div class="detail-item"><strong>Device:</strong> ${deviceData.device || 'Not available'}</div>
+                    <div class="detail-item"><strong>Type:</strong> ${deviceData.fstype || 'Not available'}</div>
+                    <div class="detail-item"><strong>Date:</strong> ${deviceData.date || 'Not available'}</div>
+                    <div class="detail-item"><strong>Free Space:</strong> ${deviceData.free || 'Not available'}</div>
+                    <div class="detail-item"><strong>Mount Point:</strong> ${deviceData.mountpoint || 'Not available'}</div>
+                    <div class="detail-item"><strong>Percent Used:</strong> ${deviceData.percent || 'Not available'}</div>
+                    <div class="detail-item"><strong>Total Space:</strong> ${deviceData.total || 'Not available'}</div>
+                    <div class="detail-item"><strong>Used Space:</strong> ${deviceData.used || 'Not available'}</div>
+                    <div class="detail-item"><strong>IP:</strong> ${deviceData.ip || 'Not available'}</div>
+                    <div class="detail-item"><strong>Time:</strong> ${deviceData.time || 'Not available'}</div>
+                `;
+
+                document.getElementById('delete-button').addEventListener('click', () => {
+                    const mac = deviceData.mac;
+                    const date = deviceData.date;
+                    const time = deviceData.time;
+
+                    if (mac && date && time) {
+                        // Construct the reference to the specific child node
+                        const ref = db.ref('disk').orderByChild('mac').equalTo(mac);
+                        
+                        ref.once('value', snapshot => {
+                            snapshot.forEach(childSnapshot => {
+                                const childData = childSnapshot.val();
+                                if (childData.date === date && childData.time === time) {
+                                    childSnapshot.ref.remove()
+                                        .then(() => {
+                                            alert('Device data deleted successfully.');
+                                            detailsDiv.innerHTML = '<p>Data deleted.</p>';
+                                        })
+                                        .catch((error) => {
+                                            alert('Error deleting data: ' + error.message);
+                                        });
+                                }
+                            });
+                        });
+                    } else {
+                        alert('MAC address, date, or time not available. Unable to delete.');
+                    }
+                });
+
+                document.getElementById('block-button').addEventListener('click', () => {
+                    const mac = deviceData.mac;
+
+                    if (mac) {
+                        const blockRef = db.ref('block').push();
+
+                        blockRef.set(mac)
+                            .then(() => {
+                                alert('Device MAC address blocked successfully.');
+                            })
+                            .catch((error) => {
+                                alert('Error blocking device: ' + error.message);
+                            });
+                    } else {
+                        alert('MAC address not available. Unable to block.');
+                    }
+                });
+            } else {
+                document.getElementById('details').innerHTML = '<p>No data available.</p>';
+            }
+        }
+    </script>
+</body>
+</html>

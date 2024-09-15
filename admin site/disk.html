@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="image.png" size="64*64" type="image/png">
+    <title>Removable Storage Media</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #0d0d0d;
+            color: #00ff00;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            padding: 20px;
+        }
+        .heading {
+            text-align: center;
+            font-size: 2.5rem;
+            margin: 30px 0;
+            text-transform: uppercase;
+            color: #00ff00;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        .table-wrapper {
+            width: 90%;
+            margin: 0 auto;
+            overflow-x: auto;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+            border-radius: 10px;
+            background-color: #1a1a1a;
+            padding: 10px;
+        }
+        .device-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .device-table th, .device-table td {
+            padding: 15px;
+            text-align: left;
+            border: 1px solid #333;
+        }
+        .device-table th {
+            background-color: #333;
+            color: #00ff00;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .device-table tbody tr:hover {
+            background-color: #262626;
+        }
+        .view-button {
+            color: #00ff00;
+            background-color: transparent;
+            border: 1px solid #00ff00;
+            padding: 5px 15px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .view-button:hover {
+            background-color: #00ff00;
+            color: #0d0d0d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="heading">Removable Storage Media</h1>
+        <div class="table-wrapper">
+            <table class="device-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>MAC</th>
+                        <th>Device</th>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>More</th>
+                    </tr>
+                </thead>
+                <tbody id="deviceData">
+                    <!-- Data will be inserted here dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        import { getDatabase, ref, get } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+
+        const firebaseConfig = {
+            // space for firebase credentials
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // Check if the user is authenticated
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                // User is not authenticated, redirect to index.html
+                window.location.href = 'index.html';
+            } else {
+                // User is authenticated, fetch data
+                fetchData();
+            }
+        });
+
+        const fetchData = async () => {
+            try {
+                const dbRef = ref(db, 'disk'); // Adjust path as needed
+                const snapshot = await get(dbRef);
+
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const tableBody = document.getElementById('deviceData');
+                    let sNo = 1;
+
+                    // Convert the data object to an array
+                    const dataArray = Object.keys(data).map(key => data[key]);
+
+                    // Sort the data by combined date and time (latest first)
+                    dataArray.sort((a, b) => {
+                        const dateTimeA = new Date(`${a.date} ${a.time}`);
+                        const dateTimeB = new Date(`${b.date} ${b.time}`);
+                        return dateTimeB - dateTimeA; // Sort by descending date and time
+                    });
+
+                    // Insert sorted data into the table
+                    dataArray.forEach((item) => {
+                        const formattedDate = item.date;
+                        const formattedTime = item.time;
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${sNo++}</td>
+                            <td>${item.mac}</td>
+                            <td>${item.device}</td>
+                            <td>${item.fstype}</td>
+                            <td>${formattedDate}</td>
+                            <td>${formattedTime}</td>
+                            <td><a class="view-button" href="dview.html?data=${encodeURIComponent(JSON.stringify(item))}">View</a></td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                } else {
+                    console.log("No data available");
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error.message);
+            }
+        };
+    </script>
+</body>
+</html>

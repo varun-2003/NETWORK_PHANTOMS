@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Keystrokes and Keyword</title>
+    <link rel="icon" href="image.png" size="64*64" type="image/png">
+    <style>
+        body {
+            background-color: black;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .box {
+            padding: 20px;
+            border: 2px solid #00ff00;
+            background: #001a00;
+            width: 80%;
+            max-width: 600px;
+            margin: 0 auto;
+            box-shadow: 0 0 10px #00ff00;
+            border-radius: 8px;
+            overflow-wrap: break-word;
+            animation: fadeIn 1s ease-in-out;
+        }
+        .box-heading {
+            text-align: center;
+            font-size: 1.5em;
+            border-bottom: 1px solid #00ff00;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            color: #00ff00;
+        }
+        .box-content {
+            font-size: 1.2em;
+            color: #80ff80;
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            width: 80%;
+            max-width: 600px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            color: white;
+            background-color: #ff0000;
+            display: inline-block;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            box-shadow: 0 0 10px #ff0000;
+            transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+        }
+        button:hover {
+            background-color: #ff4d4d;
+            box-shadow: 0 0 20px #ff4d4d;
+            transform: scale(1.05);
+        }
+        #particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    <script>
+        const firebaseConfig = {
+            // space for firebase credentials
+        };
+
+        firebase.initializeApp(firebaseConfig);
+
+        function checkAuthStatus() {
+            firebase.auth().onAuthStateChanged((user) => {
+                if (!user) {
+                    // Redirect to index.html if not authenticated
+                    window.location.href = 'index.html';
+                } else {
+                    // Proceed with loading the page content
+                    loadContent();
+                }
+            });
+        }
+
+        function loadContent() {
+            const params = new URLSearchParams(window.location.search);
+            const keystrokes = decodeURIComponent(params.get('keystrokes') || 'No keystrokes provided');
+            const keyword = decodeURIComponent(params.get('keyword') || 'No keyword provided');
+
+            document.getElementById('keyword').textContent = `KEYWORD: ${keyword}`;
+            document.getElementById('keystrokes').textContent = keystrokes;
+
+            // Highlight the keyword in the keystrokes
+            const boxContent = document.getElementById('keystrokes');
+            const keywordRegex = new RegExp(`(${keyword})`, 'gi');
+            boxContent.innerHTML = boxContent.textContent.replace(keywordRegex, '<span style="color: #ff0000;">$1</span>');
+        }
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            checkAuthStatus();
+        });
+
+        function blockMAC() {
+            const params = new URLSearchParams(window.location.search);
+            const mac = params.get('mac');
+            if (mac) {
+                const blockRef = firebase.database().ref('block');
+                blockRef.push( mac ).then(() => {
+                    alert('MAC address blocked successfully');
+                }).catch((error) => {
+                    console.error('Error blocking MAC address:', error);
+                });
+            }
+        }
+    </script>
+</head>
+<body>
+    <canvas id="particles"></canvas>
+    <div class="box">
+        <div class="box-heading" id="keyword"></div>
+        <div class="box-content" id="keystrokes"></div>
+    </div>
+    <div class="button-container">
+        <button onclick="blockMAC()">Block</button>
+    </div>
+    <script>
+        // Particle background script with mouse tracking
+        (function() {
+            const canvas = document.getElementById('particles');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particlesArray = [];
+            const numberOfParticles = 100;
+            let mouse = {
+                x: null,
+                y: null
+            };
+
+            class Particle {
+                constructor(x, y, directionX, directionY, size, color) {
+                    this.x = x;
+                    this.y = y;
+                    this.directionX = directionX;
+                    this.directionY = directionY;
+                    this.size = size;
+                    this.color = color;
+                }
+
+                draw() {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                }
+
+                update() {
+                    if (this.x > canvas.width || this.x < 0) {
+                        this.directionX = -this.directionX;
+                    }
+                    if (this.y > canvas.height || this.y < 0) {
+                        this.directionY = -this.directionY;
+                    }
+
+                    // Move particles towards the mouse
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 100) {
+                        this.x -= dx / distance;
+                        this.y -= dy / distance;
+                    }
+
+                    this.x += this.directionX;
+                    this.y += this.directionY;
+                    this.draw();
+                }
+            }
+
+            function init() {
+                particlesArray.length = 0;
+                for (let i = 0; i < numberOfParticles; i++) {
+                    let size = Math.random() * 2 + 1;
+                    let x = Math.random() * (innerWidth - size * 2);
+                    let y = Math.random() * (innerHeight - size * 2);
+                    let directionX = (Math.random() * 0.4) - 0.2;
+                    let directionY = (Math.random() * 0.4) - 0.2;
+                    let color = 'rgba(0, 255, 0, 0.5)';
+
+                    particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+                }
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particlesArray.length; i++) {
+                    particlesArray[i].update();
+                }
+                requestAnimationFrame(animate);
+            }
+
+            window.addEventListener('resize', function() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                init();
+            });
+
+            window.addEventListener('mousemove', function(event) {
+                mouse.x = event.x;
+                mouse.y = event.y;
+            });
+
+            init();
+            animate();
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="image.png" size="64*64" type="image/png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.min.css">
+  <link rel="stylesheet" href="dash.css">
+  <title>Keylogger</title>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.12.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.12.1/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <nav>
+    <div class="nav-logo">
+      <a href="index.html">
+        <img src="logo.png" alt="Logo">
+      </a>
+    </div>
+    <ul class="nav-links">
+      <li class="link"><a href="home.html" id="homeLink">Home</a></li>
+      <li class="link"><a href="keyvault.html" id="keyvaultLink">Keyvault</a></li>
+      <li class="link dropdown-container">
+        <a href="alert.html" id="alertLink">Alerts</a>
+        <ul class="dropdown">
+          <li><a href="alert.html">Keystroke</a></li>
+          <li><a href="disk.html">External Drive</a></li>
+        </ul>
+      </li>
+      <li class="link"><a href="system.html" id="systemLink">System</a></li>
+      <li class="link"><a href="report.html" id="reportLink">Report</a></li>
+      <li class="link"><a href="blocked.html" id="blockedLink">Blocked</a></li>
+    </ul>
+    <button class="btn" id="logoutBtn">Logout</button>
+  </nav>
+  <header class="container">
+    <div class="content">
+      <span class="blur"></span>
+      <span class="blur"></span>
+      <h4>LOOK BEYOND LIMITS</h4>
+      <h1>Hi, I'm Your <span>COMPANION</span>, The Network Phantom</h1>
+      <p>
+        Your ultimate network security companion: Who monitors keystrokes across your entire network to
+        prevent restricted word usage and identify potential insider threats with unparalleled precision.
+        "Don’t worry about being a phantom—sometimes, working in the shadows is the best way to get things done."
+      </p>
+      <button class="btn get-started">Get Started</button>
+    </div>
+    <div class="image">
+      <img src="map2.png" alt="Network Map">
+    </div>
+  </header>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="image.png" size="64*64" type="image/png">
+    <title>Blocked Devices</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #0f0f0f;
+            color: #00ff00;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        h1 {
+            margin: 0;
+            padding: 20px 0;
+            text-align: center;
+            background-color: #0f0f0f;
+            color: #00ff00;
+            font-size: 2em;
+            text-shadow: 0 0 10px #00ff00;
+            width: 100%;
+            box-shadow: 0 4px 2px -2px #333;
+        }
+        .table-container {
+            width: 80%;
+            max-height: 80vh;
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+            border-radius: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #00ff00;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            color: #00ff00;
+        }
+        tr:nth-child(even) {
+            background-color: #1a1a1a;
+        }
+        tr:nth-child(odd) {
+            background-color: #111;
+        }
+        tr:hover {
+            background-color: #2a2a2a;
+        }
+        .unblock-btn {
+            color: #fff;
+            background-color: #ff0000;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9em;
+            transition: background-color 0.3s ease;
+            border-radius: 5px;
+        }
+        .unblock-btn:hover {
+            background-color: #cc0000;
+        }
+        .footer {
+            margin-top: auto;
+            padding: 20px;
+            text-align: center;
+            font-size: 1em;
+            color: #00ff00;
+        }
+        .footer p {
+            margin: 0;
+        }
+        /* Scrollbar Styling */
+        .table-container::-webkit-scrollbar {
+            width: 10px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: #00ff00;
+            border-radius: 5px;
+        }
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #00cc00;
+        }
+    </style>
+</head>
+<body>
+    <h1>Blocked Devices</h1>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>S.No</th>
+                    <th>MAC Address</th>
+                    <th>Dislodge</th>
+                </tr>
+            </thead>
+            <tbody id="blockList">
+                <!-- Data will be inserted here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+    <div class="footer">
+        <p>© NETWORK PHANTOM.</p>
+    </div>
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script>
+        // Your web app's Firebase configuration
+        var firebaseConfig = {
+            // space for firebase credentials
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        var database = firebase.database();
+
+        // Reference to the block class in Firebase
+        var blockRef = database.ref('block');
+
+        // Fetch data from Firebase and display it
+        blockRef.on('value', (snapshot) => {
+            var blockList = document.getElementById('blockList');
+            blockList.innerHTML = ''; // Clear the table body
+            var data = snapshot.val();
+            var sNo = 1;
+            for (var key in data) {
+                if (data.hasOwnProperty(key)) {
+                    var macAddress = data[key];
+                    var row = document.createElement('tr');
+                    
+                    // S.No column
+                    var sNoCell = document.createElement('td');
+                    sNoCell.textContent = sNo++;
+                    row.appendChild(sNoCell);
+                    
+                    // MAC Address column
+                    var macCell = document.createElement('td');
+                    macCell.textContent = macAddress;
+                    row.appendChild(macCell);
+                    
+                    // Unblock button column
+                    var actionCell = document.createElement('td');
+                    var unblockBtn = document.createElement('button');
+                    unblockBtn.textContent = "Unblock";
+                    unblockBtn.className = "unblock-btn";
+                    
+                    // Pass the correct key to the delete function
+                    unblockBtn.onclick = (function(currentKey) {
+                        return function() {
+                            deleteFromFirebase(currentKey);
+                        };
+                    })(key);
+                    
+                    actionCell.appendChild(unblockBtn);
+                    row.appendChild(actionCell);
+                    
+                    blockList.appendChild(row);
+                }
+            }
+        });
+
+        // Function to delete a MAC address from Firebase
+        function deleteFromFirebase(key) {
+            blockRef.child(key).remove()
+                .then(() => {
+                    alert("MAC address unblocked successfully!");
+                })
+                .catch((error) => {
+                    console.error("Error unblocking MAC address: ", error);
+                });
+        }
+    </script>
+</body>
+</html>

