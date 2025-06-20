@@ -73,6 +73,6 @@ This project is a **network-enabled keylogger** designed for use in organization
 
 ## 🙋‍♂️ Author
 
-**[Your Name]**  
+VARUN S 
 Cybersecurity Enthusiast | Python Programmer  
-[LinkedIn](#) • [Email](#) • [GitHub](https://github.com/yourusername)
+• [Email](varuncse3@gmail.com) • [GitHub](https://github.com/varun-2003/NETWORK_PHANTOMS.git)
